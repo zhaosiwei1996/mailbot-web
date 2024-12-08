@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailbot-web
+  namespace: test
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: mailbot-web
+  template:
+    metadata:
+      labels:
+        app: mailbot-web
+    spec:
+      containers:
+        - name: mailbot-web
+          image: mailbot-web:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: mailbot-web-config
+              mountPath: /etc/nginx/nginx.conf
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+      volumes:
+        - name: mailbot-web-config
+          hostPath:
+            path: /root/nginx.conf
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - mailbot-web
+              topologyKey: "kubernetes.io/hostname"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailbot-web
+  namespace: test
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      nodePort: 30000
+      targetPort: 80
+  selector:
+    app: mailbot-web
